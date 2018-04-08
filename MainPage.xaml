@@ -20,45 +20,31 @@
             <ColumnDefinition/>
             <ColumnDefinition/>
             <ColumnDefinition/>
+            <ColumnDefinition/>
         </Grid.ColumnDefinitions>
 
-        <Grid 
-            Name="GlassHost"
-            Grid.Row="0" 
-            Grid.Column="0"
-            Grid.RowSpan="3"
-            Grid.ColumnSpan="3"></Grid>
 
-        <Pivot 
-            Name="mainpage_pivot"
-            Grid.Row="0" 
-            Grid.Column="0"
-            Grid.RowSpan="3"
-            Grid.ColumnSpan="3">
-            <Pivot.RightHeader>
-                <ProgressRing Name="mainpage_progress_ring" IsActive="True" />
-            </Pivot.RightHeader>
-
-        </Pivot>
 
         <Button 
-            Name="button_open"
+            Name="button_play"
             HorizontalAlignment="Center"
-            Content="重试" 
+            Content="播放" 
             Grid.Row="1"
-            Visibility="Collapsed"
-            Grid.Column="1" Click="Button_Click"/>
+            Grid.Column="1" Click="Button_Click_Play"/>
 
-        <MediaPlayerElement 
-            Name="video_player"
-            AutoPlay="True"
-            Grid.Row="0" 
-            Grid.Column="0"
-            Grid.RowSpan="3"
-            Grid.ColumnSpan="3"
-            Visibility="Collapsed"
-            AreTransportControlsEnabled="True"/>
-
+        <StackPanel
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Orientation="Horizontal"
+            Grid.Row="1"
+            Grid.Column="2">
+            <Button 
+                Name="button_open"
+                Content="下载" 
+                Click="Button_Click"/>
+            <ProgressRing Name="mainpage_progress_ring" IsActive="False" />
+        </StackPanel>
+        
 
     </Grid>
 </Page>

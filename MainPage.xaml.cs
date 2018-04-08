@@ -17,6 +17,7 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Composition;
 using Windows.UI.Core;
+using Windows.UI.Popups;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -37,30 +38,23 @@ namespace NetEasePlayer_UWP
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private String url = "http://hdtv.neu6.edu.cn/hdtv.json";
+        private String url = "http://www.neu.edu.cn/indexsource/neusong.mp3";
+        private String filename = "neusong20154409.mp3";
+
         Frame root = Window.Current.Content as Frame;
 
         public MainPage()
         {
             this.InitializeComponent();
-            //背景模糊
-            //this.InitializeFrostedGlass(GlassHost);
-            //去掉标题栏
-            //var coreTitleBar = CoreApplication.GetCurrentView().TitleBar;
-            //coreTitleBar.ExtendViewIntoTitleBar = false;
-            //var view = ApplicationView.GetForCurrentView();
-           // view.TitleBar.ButtonBackgroundColor = Colors.Transparent; //将标题栏的三个键背景设为透明
-            //view.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent; //失去焦点时，将三个键背景设为透明
-            //view.TitleBar.ButtonInactiveForegroundColor = Colors.White; //失去焦点时，将三个键前景色设为白色```
 
             Windows.UI.Core.SystemNavigationManager.GetForCurrentView().BackRequested += BackRequested;
             SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
                 root.CanGoBack ? 
                 AppViewBackButtonVisibility.Visible : Windows.UI.Core.AppViewBackButtonVisibility.Collapsed;
-                root.Navigated += OnNavigated;
-
-            Gets(new Uri(this.url));
+            root.Navigated += OnNavigated;
         }
+        //标题栏返回
+        //https://blog.csdn.net/zhongyanfu0/article/details/51883248
         private void OnNavigated(object sender, NavigationEventArgs e)
         {
             SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
@@ -76,102 +70,50 @@ namespace NetEasePlayer_UWP
             {
                 e.Handled = true;
                 rootFrame.GoBack();
-                
             }
         }
 
-        //添加一个pivot页面
-        public void AddItem(PlayList playList)
-        {
-            GridView g = new GridView();
-            PivotItem pi1 = new PivotItem
-            {
-                Header = playList.Name,
-                Content = g
-            };
-            mainpage_pivot.Items.Add(pi1);
-        
-           foreach(Live obj in playList.Livelist)
-            {
-                TextBlock t = new TextBlock
-                {
-                    Text = obj.Name
-                };
-                t.Tag = obj;
-                g.Items.Add(t);
-            }
-            g.IsItemClickEnabled = true;
-            g.ItemClick += new ItemClickEventHandler((sender,arg) => {
-                Live live = (Live)((TextBlock)arg.ClickedItem).Tag;
-                Debug.WriteLine(live.Name);
-                //TODO 多页面会有内存溢出吗？
-                root.Navigate(typeof(PlayerPage),live);
-
-            });
-        }
-
-
-
-        // https://docs.microsoft.com/zh-cn/uwp/api/windows.storage.pickers.fileopenpicker#examples
-
+        //打开或保存音频
+        //https://docs.microsoft.com/zh-cn/windows/uwp/files/quickstart-managing-folders-in-the-music-pictures-and-videos-libraries
+        //https://docs.microsoft.com/en-us/windows/uwp/files/quickstart-managing-folders-in-the-music-pictures-and-videos-libraries
         public async Task Gets(Uri uri)
         {
 
             try
             {
-                HttpClient httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(uri);
-                var buffer = await response.Content.ReadAsBufferAsync();
-                //转为UTF-8格式
-                DataReader reader = DataReader.FromBuffer(buffer);
-                byte[] fileContent = new byte[reader.UnconsumedBufferLength];
-                reader.ReadBytes(fileContent);
-                Encoding encoding = Encoding.GetEncoding("UTF-8");
-                var str = encoding.GetString(fileContent);
-               
-                JsonObject jsonObject = JsonObject.Parse(str);
-                JsonArray types = jsonObject["type"].GetArray();
-                JsonArray lives = jsonObject["live"].GetArray();
-
-                //储存节目单
-                Dictionary<String, PlayList> listMap = new Dictionary<string, PlayList>();
-
-                foreach (JsonValue obj in types)
+                StorageFile destinationFile = await KnownFolders.MusicLibrary.CreateFileAsync(this.filename);
+                try
                 {
-                    String name = obj.GetObject()["name"].GetString();
-                    String uid = obj.GetObject()["id"].GetString();
-                    listMap.Add(uid, new PlayList(name, uid));
-                }
+                    HttpClient httpClient = new HttpClient();
+                    var response = await httpClient.GetAsync(uri);
+                    var buffer = await response.Content.ReadAsBufferAsync();
+                    var sourceStream = await response.Content.ReadAsInputStreamAsync();
 
-               // Live json格式
-               // "num":50001,
-　　　　　　     // "itemid":"uid0",
-　　　　　　     // "name":"CCTV-1高清",
-　　　　　　     // "urllist":"http:....."
-           
-                foreach (JsonValue obj in lives)
+                    using (var destinationStream = await destinationFile.OpenAsync(FileAccessMode.ReadWrite))
+                    {
+                        using (var destinationOutputStream = destinationStream.GetOutputStreamAt(0))
+                        {
+                            await RandomAccessStream.CopyAndCloseAsync(sourceStream, destinationStream);
+                        }
+                    }
+                    MessageDialog msg = new MessageDialog("校歌下载完毕");
+                    await msg.ShowAsync();
+                }
+                catch (Exception e)
                 {
-                    String name = obj.GetObject()["name"].GetString();
-                    String itemid = obj.GetObject()["itemid"].GetString();
-                    String urllist = obj.GetObject()["urllist"].GetString();
-                    listMap[itemid].AddLive(new Live(urllist, name, itemid));
+                    Debug.WriteLine("xxxxx{0}", e);
+                    MessageDialog msg = new MessageDialog("出了点问题");
+                    await msg.ShowAsync();
                 }
-
-                //添加到页面
-                foreach(KeyValuePair<String,PlayList> pair in listMap)
-                {
-                    PlayList playList = pair.Value;
-                    this.AddItem(playList);
-                }
-
             }
-            catch(Exception e)
+            catch
             {
-                Debug.WriteLine("xxxxx{0}",e);
-                button_open.Visibility = Visibility.Visible;
+                MessageDialog msg = new MessageDialog("文件不能重复下载");
+                await msg.ShowAsync();
             }
             finally
             {
+                button_open.Visibility = Visibility.Visible;
                 mainpage_progress_ring.IsActive = false;
             }
         }   
@@ -183,18 +125,11 @@ namespace NetEasePlayer_UWP
             button_open.Visibility = Visibility.Collapsed;
         }
 
-        private void InitializeFrostedGlass(UIElement glassHost)
+        private void Button_Click_Play(object sender, RoutedEventArgs e)
         {
-            Visual hostVisual = ElementCompositionPreview.GetElementVisual(glassHost);
-            Compositor compositor = hostVisual.Compositor;
-            var backdropBrush = compositor.CreateHostBackdropBrush();
-            var glassVisual = compositor.CreateSpriteVisual();
-            glassVisual.Brush = backdropBrush;
-            ElementCompositionPreview.SetElementChildVisual(glassHost, glassVisual);
-            var bindSizeAnimation = compositor.CreateExpressionAnimation("hostVisual.Size");
-            bindSizeAnimation.SetReferenceParameter("hostVisual", hostVisual);
-            glassVisual.StartAnimation("Size", bindSizeAnimation);
+            root.Navigate(typeof(PlayerPage), this.filename);
         }
+
 
     }
 }
