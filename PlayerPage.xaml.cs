@@ -32,8 +32,10 @@ namespace NetEasePlayer_UWP
     /// </summary>
     public sealed partial class PlayerPage : Page
     {
-       //页面缓存
-       // https://blog.csdn.net/funnywhitecat/article/details/76302055
+        private String url = "http://www.neu.edu.cn/indexsource/neusong.mp3";
+
+        //页面缓存
+        // https://blog.csdn.net/funnywhitecat/article/details/76302055
         public PlayerPage()
         {
             this.InitializeComponent();
@@ -62,10 +64,7 @@ namespace NetEasePlayer_UWP
             }
             catch
             {
-                MessageDialog msg = new MessageDialog("文件不存在");
-                await msg.ShowAsync();
-                Frame rootFrame = Window.Current.Content as Frame;
-                rootFrame.GoBack();
+                video_player.Source = MediaSource.CreateFromUri(new Uri(this.url));
             }
 
         }
